@@ -16,12 +16,11 @@ Plugins for Claude Code and Codex can run code on your computer, so it's worth a
 ### The network
 
 - **The map's server** (`floorplan/serve.mjs`) listens on `127.0.0.1` only, so other machines can't reach it. It answers only to `127.0.0.1` and `localhost` at its own port, and its API needs a token that only the map page receives.
-- **One outbound request: the Floorplan Cloud waitlist,** sent only if you type your email into the card on the map and click to join. It goes to `floorplan-waitlist-690500262396.us-central1.run.app` and carries your email and "just me" or "with my team". Details in [Privacy and security](privacy-and-security.md#floorplan-cloud-waitlist).
+- **No outbound request of its own.** The only thing Floorplan can send anywhere is to a **model endpoint you configure** (`floorplan/config.json`): when you ask the map a question with that engine, the question goes there, and to nowhere else. A local endpoint (Ollama, LM Studio) keeps it on your machine, and with the Claude Code CLI or Codex instead, Floorplan sends nothing at all. [Engines](engines.md#privacy-where-each-engine-sends-what) lists exactly what each one sends.
 - **The map page loads nothing from the internet.** Its layout engine and fonts are built into the file. It only links to documentation, which opens when you click.
 - **The page enforces that itself.** Every map carries a Content-Security-Policy: only the page's own scripts run (each is allowed by its SHA-256 hash, computed when the page is written), and images and fonts can only come from inside the file. An **exported copy** may contact nothing at all (`connect-src 'none'`); `floorplan/index.html` and the page the map's server serves may contact only that local server (`connect-src 'self'`), for asking questions, live reload, flows and Export. So even if text from a repository ever slipped past the map's escaping and became script, it couldn't send the map anywhere. The copy made for the Claude app (`--artifact`) has no policy of its own, because the Claude app runs its own code in that page and applies its own rules.
-- **Reporting a false alarm is yours to send.** If you tick the box under **Not a problem** in Health, the map opens a new GitHub issue in your browser with the text filled in, shown to you first. Nothing goes anywhere unless you submit it there.
 
-Asking questions on the map runs Claude Code or Codex, which talk to Anthropic or OpenAI the way they always do, on your account. Floorplan itself sends nothing.
+Asking questions on the map runs one engine: a model endpoint you configured, or Claude Code or Codex, which talk to Anthropic or OpenAI the way they always do, on your account. Floorplan's own code sends nothing else, and holds no key: `config.json` names the environment variable a key lives in, and the key is read from there for that one request.
 
 ### The programs it runs
 
@@ -52,6 +51,7 @@ In Claude Code, while the skill is in use, it pre-approves one kind of command: 
   ```
   Then compare `package/lib/elk.bundled.js` with Floorplan's copy, for example with `sha256sum` (macOS: `shasum -a 256`; Windows PowerShell: `Get-FileHash`).
 - **One `new Function`** in `serve.mjs` loads the map's lookup code from `floorplan/query.mjs`, a file Floorplan's build wrote into your project. It never runs anything from the network.
+- **One HTTP client**, `floorplan/llm.mjs`, and it posts to one address: the model endpoint you configured. It adds `/v1/chat/completions` to the base URL you gave, sends the question, and reads the answer. No other host is ever contacted, and the address is never built from anything in your repository.
 - **Health reads the middle part of tokens it finds** (it decodes them from base64) to tell what kind of token each is, so it can skip ones that are public by design. It never stores or shows the token itself.
 
 ## Checked on every change
@@ -59,7 +59,7 @@ In Claude Code, while the skill is in use, it pre-approves one kind of command: 
 [`tests/supply-chain.test.mjs`](../tests/supply-chain.test.mjs) runs on every push and pull request, on Linux and Windows (and weekly on macOS). It fails if a change would:
 
 - add a hook, an MCP server, a dependency or an install script;
-- send a request anywhere other than the map's own server and the waitlist;
+- send a request anywhere other than the map's own server and the model endpoint you set;
 - start a program not in the table above, or start one through a shell;
 - use `eval`, load code at run time, or hide a long encoded string in the code;
 - add a script that would run without asking;

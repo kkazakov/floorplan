@@ -11,7 +11,7 @@ import { execFileSync } from 'node:child_process';
 import { SKILL, makeProject, cleanup } from './helpers.mjs';
 
 // the skill's files the build puts in the map folder
-const PLACED = ['serve.mjs', 'page-safety.mjs'];
+const PLACED = ['serve.mjs', 'page-safety.mjs', 'llm.mjs', 'config.mjs'];
 const filesIn = (dir) => fs.readdirSync(dir, { recursive: true, withFileTypes: true }).filter((e) => e.isFile()).map((e) => path.join(e.parentPath ?? e.path, e.name));
 const canWrite = (file) => { try { fs.closeSync(fs.openSync(file, 'r+')); return true; } catch { return false; } };
 const readOnly = (file) => fs.chmodSync(file, 0o444);

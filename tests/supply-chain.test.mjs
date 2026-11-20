@@ -68,7 +68,7 @@ test('the only commands pre-approved are the skill’s own scripts, and that lis
   assert.deepEqual(scripts, SCRIPTS, `scripts/ list. ${UPDATE}`);
 });
 
-test('it reaches the internet in one place: the waitlist, only when someone signs up', () => {
+test('it makes no request of its own: the only address it posts to is the endpoint you configure', () => {
   // no network modules except the map's own local server
   const netImports = find(/from\s+['"](?:node:)?(https?|http2|net|tls|dgram|dns|undici)['"]|require\(\s*['"](?:node:)?(https?|http2|net|tls|dgram|dns|undici)['"]\s*\)/);
   assert.deepEqual(netImports.map((x) => `${x.file}: ${x.text}`), [`assets/serve.mjs: from 'node:http'`], `network modules. ${UPDATE}`);
@@ -76,14 +76,24 @@ test('it reaches the internet in one place: the waitlist, only when someone sign
   assert.match(read(path.join(SKILL, 'assets', 'serve.mjs')), /server\.listen\(port, '127\.0\.0\.1'\);/);
   assert.doesNotMatch(read(path.join(SKILL, 'assets', 'serve.mjs')), /\.listen\([^)]*(0\.0\.0\.0|::)/);
 
-  // every request: to the map's own server, except the one waitlist call
+  // every request the shipped code makes goes to the map's own server: there is no waitlist, telemetry or
+  // reporting call left, and nothing else may appear here
   const LOCAL = /^(['"`]\/|s\.url \+)/;
   const calls = find(/\bfetch\(\s*([^,)]+)/).map((x) => ({ ...x, arg: x.m[1].trim() }));
   const outside = calls.filter((c) => !LOCAL.test(c.arg));
-  assert.deepEqual(outside.map((c) => `${c.file}: fetch(${c.arg}`), ['assets/serve.mjs: fetch(WAITLIST_URL'], `requests that leave this computer. ${UPDATE}`);
-  assert.match(read(path.join(SKILL, 'assets', 'serve.mjs')), /const WAITLIST_URL = process\.env\.FLOORPLAN_WAITLIST_URL \|\| 'https:\/\/floorplan-waitlist-690500262396\.us-central1\.run\.app\/';/);
+  assert.deepEqual(outside.map((c) => `${c.file}: fetch(${c.arg}`), [], `requests that leave this computer. ${UPDATE}`);
+  // the other request: the model endpoint a person configured, made through the injectable client in
+  // assets/llm.mjs. It goes to the one address that settings file or environment names, and to no other.
+  const llm = read(path.join(SKILL, 'assets', 'llm.mjs'));
+  assert.match(llm, /export function createClient\(\{ baseUrl,[^)]*fetchImpl = globalThis\.fetch/, 'the client can be given a fetch, so tests make no request at all');
+  assert.deepEqual(find(/\bfetchImpl\(\s*([^,)]+)/).map((x) => `${x.file}: ${x.m[1].trim()}`), ['assets/llm.mjs: url'], `what the model client posts to. ${UPDATE}`);
+  assert.match(llm, /const url = chatUrl\(baseUrl\);/, 'that address is the one the settings name, never a built-in one');
+  assert.doesNotMatch(llm, /(https?:\/\/[^'"\s]+)['"`]\s*,?\s*\{?\s*method/, 'no hard-coded endpoint is ever posted to');
   assert.deepEqual(find(/\b(WebSocket|XMLHttpRequest|sendBeacon|importScripts)\b/).map((x) => `${x.file}: ${x.text}`), [], `other ways to reach a server. ${UPDATE}`);
   assert.deepEqual(find(/new EventSource\(\s*(?!['"`]\/)/).map((x) => `${x.file}:${x.line}`), [], 'live reload only from the local server');
+
+  // nothing in the map reports anything to Floorplan's author: no signup card, no GitHub issue link
+  assert.deepEqual(find(/issues\/new|Floorplan Cloud|WAITLIST_URL|api\/cloud/).map((x) => `${x.file}:${x.line}`), [], `reporting to the developer. ${UPDATE}`);
 
   // the map page loads nothing from the internet: layout engine and fonts are built in
   const page = read(path.join(SKILL, 'assets', 'viewer.html'));
@@ -94,7 +104,7 @@ test('it reaches the internet in one place: the waitlist, only when someone sign
 
 test('it runs a fixed list of programs, and never through a shell', () => {
   const importers = find(/from\s+['"](?:node:)?child_process['"]/).map((x) => x.file).sort();
-  assert.deepEqual(importers, ['assets/serve.mjs', 'scripts/lib/common.mjs', 'scripts/open.mjs', 'scripts/refresh.mjs'], `files that start programs. ${UPDATE}`);
+  assert.deepEqual(importers, ['assets/serve.mjs', 'driver.mjs', 'scripts/lib/common.mjs', 'scripts/open.mjs', 'scripts/refresh.mjs'], `files that start programs. ${UPDATE}`);
   // only spawn and execFileSync, which take a program and its arguments (regex .exec() is text matching)
   const names = find(/import\s*\{([^}]*)\}\s*from\s+['"](?:node:)?child_process['"]/).flatMap((x) => x.m[1].split(',').map((n) => n.trim()));
   assert.deepEqual([...new Set(names)].sort(), ['execFileSync', 'spawn'], `child_process functions used. ${UPDATE}`);

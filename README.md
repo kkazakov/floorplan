@@ -9,12 +9,12 @@
 
 **See how your app actually fits together.**
 
-Claude or Codex reads your codebase and draws an interactive map of it. Every part, file and web request gets a plain-English name, and every connection between them is shown.
+Your AI agent reads your codebase and draws an interactive map of it. Every part, file and web request gets a plain-English name, and every connection between them is shown. Works in Claude Code, Codex, DeepSeek Harness, Cursor, OpenCode and Gemini CLI, and the map itself can be powered by **any model** — OpenAI, DeepSeek, or a local one on Ollama or LM Studio — with no agent CLI at all.
 
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D97757?style=flat-square)](https://code.claude.com/docs/en/overview)
 [![Codex plugin](https://img.shields.io/badge/Codex-plugin-111?style=flat-square)](docs/codex.md)
 [![Tests](https://img.shields.io/github/actions/workflow/status/haydenschmitty/floorplan/test.yml?branch=main&style=flat-square&label=tests)](https://github.com/haydenschmitty/floorplan/actions/workflows/test.yml)
-[![Version](https://img.shields.io/badge/version-0.11.0-111?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.12.0-111?style=flat-square)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-111?style=flat-square)](LICENSE)
 [![Node 18+](https://img.shields.io/badge/node-%E2%89%A518-111?style=flat-square)](https://nodejs.org)
 [![Zero dependencies](https://img.shields.io/badge/dependencies-0-111?style=flat-square)](#how-it-works)
@@ -30,6 +30,28 @@ Claude or Codex reads your codebase and draws an interactive map of it. Every pa
 </p>
 <p align="center"><sub>▶ <a href="https://youtu.be/NTUUzC7L_NQ">Watch the walkthrough</a>: installing Floorplan, then a tour of Brewline, a demo coffee-subscription app built across four repos.</sub></p>
 <p align="center"><b><a href="https://haydenschmitty.github.io/floorplan-demo/">Try the live demo →</a></b> Explore the Brewline map in your browser, no install needed.</p>
+
+## What's different from the original Floorplan
+
+This is a customized copy of [Floorplan](https://github.com/haydenschmitty/floorplan) 0.11.0 (MIT), changed so it runs on **any model, in any harness, and sends nothing anywhere on its own**. Everything the original does — scan, map, Health, screens, flows, recent work, blueprints — still works; what changed is who can answer, and what the map is allowed to reach.
+
+| | Original Floorplan 0.11.0 | This copy |
+|---|---|---|
+| **Asking the map, flows, Change** | needs the Claude Code CLI or Codex, installed and signed in | **any OpenAI-compatible endpoint**: OpenAI, DeepSeek, OpenRouter, a gateway, or a local model on Ollama, LM Studio or vLLM. The CLIs still work if you have one |
+| **Making a map** | an agent session | an agent session, or **`driver.mjs`** with no agent session at all (CI, a script) |
+| **`SKILL.md`** | Claude-shaped: `${CLAUDE_SKILL_DIR}`, `$ARGUMENTS`, a `!` command line | one portable placeholder (`${FP}`), no harness syntax; DSH, Cursor, OpenCode and Gemini CLI are recognised, and an unrecognised harness is recorded as **none** instead of guessed as Claude |
+| **Model settings** | none (a CLI has its own sign-in) | `floorplan/config.json` plus `FLOORPLAN_*`; the key is named (`apiKeyEnv`) or read from a file (`apiKeyFile`), never stored |
+| **What it reaches outside** | an opt-in Floorplan Cloud waitlist, and a "report a false alarm" GitHub issue | **nothing of its own**: the only request is a question you ask, to the endpoint you configured. The waitlist, its card and the issue reporting are removed |
+| **Model answers** | — | checked against a JSON Schema even when a model returns them as a tool call, unwrapped when nested, retried with the problems; request parameters a provider refuses (`max_tokens`, `temperature`, `strict`) are dropped and remembered |
+
+Smaller differences that follow from those:
+
+- **Answer quality degrades honestly.** A model with tools gets the map's lookups and read-only source access; one without still gets a digest of the map. **Change** on a blueprint needs an endpoint that accepts a JSON Schema or JSON mode; an endpoint that accepts neither can still answer questions.
+- **The tools are bounded**: inside the codebase root, read-only, no shell, the generated map and key/settings files skipped, secrets masked in every result.
+- **Docs for the new surface**: [Engines](docs/engines.md) (config, local models, privacy table, tool sandbox) and a rewritten [headless guide](docs/unattended.md); the changelog for this copy is 0.12.0.
+- **Version 0.12.0, branch `any-model`.** Upstream is untouched: `upstream/main` is still the 0.11.0 release, and `git diff upstream/main...any-model` is the whole difference.
+
+The original project, its documentation and its MIT license are by [Hayden Smith](https://github.com/haydenschmitty); everything below describes the map itself and applies to both.
 
 ## Why Floorplan?
 
@@ -165,6 +187,8 @@ Want to click around yourself? Open the [live demo](https://haydenschmitty.githu
 
 You need [Node.js 18+](https://nodejs.org) and either Claude Code or Codex. Floorplan runs on the plan you already have, with no API keys.
 
+Floorplan also runs with **no agent at all**: a small driver and the map's server speak to any OpenAI-compatible endpoint, including a model on your own machine. See [Any model, any harness](#any-model-any-harness).
+
 ### Claude Code
 
 In the desktop app's Code tab or the CLI:
@@ -225,18 +249,83 @@ You get a [blueprint](#also-blueprints-for-apps-you-havent-built-yet) of the pla
 | "Rewrite the floorplan for developers" | "What did we change for refunds?" |
 | "Export the floorplan so I can send it to the team" | |
 
+## Any model, any harness
+
+No Claude or Codex install is needed, and nothing in the pipeline requires one:
+
+- **Drawing the map** is plain Node scripts plus a model writing three JSON files. That model is whichever agent you're already talking to — Claude Code, Codex, DeepSeek Harness, Cursor, OpenCode, Gemini CLI (an unrecognised harness is named as none rather than guessed as Claude) — or, with no agent session at all, the headless driver below.
+- **Asking the map questions**, tracing flows and changing a blueprint run on **any OpenAI-compatible endpoint**: OpenAI, DeepSeek, OpenRouter and most gateways, or a local model on Ollama, LM Studio or vLLM. The map's page, buttons and answers are identical whichever one answers.
+
+### Ask the map through any model
+
+**1.** After your first map exists, save `floorplan/config.json` (the folder is git-ignored, and the file holds no key):
+
+```json
+{ "engine": "http", "baseUrl": "http://127.0.0.1:11434/v1", "model": "qwen3-coder" }
+```
+
+| Provider | `baseUrl` | `model` | Key |
+|---|---|---|---|
+| Ollama (local) | `http://127.0.0.1:11434/v1` | whatever `ollama list` shows | none |
+| LM Studio (local) | `http://127.0.0.1:1234/v1` | the name it shows | none |
+| vLLM (local) | `http://127.0.0.1:8000/v1` | the served model | none |
+| OpenAI | `https://api.openai.com/v1` | `gpt-4.1-mini` | `OPENAI_API_KEY` |
+| DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` | `DEEPSEEK_API_KEY` |
+| OpenRouter | `https://openrouter.ai/api/v1` | the id it lists, e.g. `deepseek/deepseek-chat` | `OPENROUTER_API_KEY` |
+| Any gateway | its `/v1` address | its model id | name it with `apiKeyEnv` |
+
+**2.** For a hosted API, put the key in an environment variable and name it in the file — the key itself never goes in the file, the map or a log:
+
+```json
+{ "engine": "http", "baseUrl": "https://api.openai.com/v1", "model": "gpt-4.1-mini", "apiKeyEnv": "MY_OPENAI_KEY" }
+```
+
+`apiKeyEnv` is optional for OpenAI, DeepSeek and OpenRouter: they use the variable their own docs name (`OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, `OPENROUTER_API_KEY`), so with the file above `OPENAI_API_KEY=sk-… node floorplan/serve.mjs` just works. Any other address must name its variable, so a key is never sent to the wrong host. A local model needs no key at all.
+
+If setting an environment variable is awkward — the map's server is often started by a desktop app, which doesn't see your shell — put the key in a file outside the project instead and point at it. The map folder then holds no secret at all: create `~/.config/floorplan/model.key` containing just your key, readable by you only (`chmod 600`), and name it in the file:
+
+```json
+{ "engine": "http", "baseUrl": "https://api.openai.com/v1", "model": "gpt-4.1-mini", "apiKeyFile": "~/.config/floorplan/model.key" }
+```
+
+`apiKeyEnv` is a **name**, never the key itself: a key pasted into it is refused with a message rather than silently failing at the endpoint.
+
+**3.** Restart the map's server from the codebase root and the Ask bar switches to the model:
+
+```bash
+node floorplan/serve.mjs          # the startup line names the engine, model and host
+```
+
+No `claude` or `codex` installed is fine: the page reports `"cli": false` and the bar reads e.g. **Ollama · qwen3-coder**. Models that take tools get the map's lookups plus read-only source access; models that don't still answer from a digest of the map, and say what they can't see. **Change** on a blueprint asks for a JSON Schema and falls back to plain JSON mode; an endpoint that accepts neither can still answer questions, but not change a plan. [Engines](docs/engines.md) has every setting, the tool sandbox and the privacy table.
+
+### Make the map headless, with any model
+
+`driver.mjs` does scan → describe → build with no agent session, no browser and no key on disk. It reads the same `config.json` and the same `FLOORPLAN_*` variables:
+
+```bash
+# a local model, nothing to sign in to
+FLOORPLAN_BASE_URL=http://127.0.0.1:11434/v1 FLOORPLAN_MODEL=qwen3-coder \
+  node skills/floorplan/driver.mjs /path/to/codebase
+
+# a hosted model; --json gives CI one object, and --open starts the map afterwards
+OPENAI_API_KEY=sk-… FLOORPLAN_BASE_URL=https://api.openai.com/v1 FLOORPLAN_MODEL=gpt-4.1-mini \
+  node skills/floorplan/driver.mjs /path/to/codebase --json
+```
+
+It writes only `floorplan/`, exits non-zero with a named reason when a job can't finish, and never names an agent in the map it makes. Read [Running without an agent session](docs/unattended.md).
+
 ## How it works
 
 ```mermaid
 flowchart LR
     code["Your codebase<br/>one repo or several"] --> scan["Scan<br/>files, imports, routes, requests"]
-    scan --> agent["Claude or Codex<br/>names the parts, describes every file"]
+    scan --> agent["An AI agent<br/>names the parts, describes every file"]
     agent --> build["Build<br/>map, health, screens, recent work"]
     build --> map["floorplan/index.html<br/>opens in your browser"]
     map -. "update the floorplan" .-> scan
 ```
 
-Scripts do the mechanical work: finding repos, parsing code in a dozen languages, matching web requests to endpoints, laying out the map. They're plain Node with no dependencies. Claude or Codex does the part only a reader can: deciding what the parts of your app *are*, and saying so plainly. Details in [How it works](docs/how-it-works.md).
+Scripts do the mechanical work: finding repos, parsing code in a dozen languages, matching web requests to endpoints, laying out the map. They're plain Node with no dependencies. A model — the agent you're already talking to, or `driver.mjs` with one you point it at — does the part only a reader can: deciding what the parts of your app *are*, and saying so plainly. Details in [How it works](docs/how-it-works.md).
 
 **Languages:** TypeScript, JavaScript, Python, Go, Rust, Java, Kotlin, Scala, Swift, C#, PHP, plus Vue, Svelte and Astro files and Shopify themes (Liquid), with lighter support for others.<br>
 **Endpoints:** Express, Fastify, Koa, Hono, NestJS, Next.js, Firebase Cloud Functions, Supabase Edge Functions, Flask, FastAPI, Django, Go's net/http, Gin, Echo and chi, Actix, Axum, Spring, ASP.NET Core, Laravel (with Wayfinder calls), Serverless Framework (`serverless.yml`), `Bun.serve` routes, and route tables keyed by method and path (`"GET /api/orders": listOrders`) in JavaScript and Python, or listed as `{ method, path, handle }` in JavaScript.<br>
@@ -250,9 +339,9 @@ A `floorplan/` folder holding the map. In Claude Code, if you say yes, it also a
 
 - The scan, the map and its small local server all run on your computer. The server only accepts connections from your own machine.
 - No dependencies or install scripts, and the map works offline: its layout engine and fonts are built in.
-- Questions on the map go to your own account, through the Claude Code CLI or Codex, which can read your code but not change it.
+- Questions on the map go to your own account, through the Claude Code CLI or Codex, or to a model endpoint you configure — which can read your code but not change it, and never sees a key in the map or the source it reads.
 - The Health check never stores or shows secret values, only where they are.
-- No analytics or tracking. The map may ask once whether you'd like an email when Floorplan Cloud launches. Nothing is sent unless you sign up, and then only your email and "just me" or "with my team".
+- No analytics, tracking or telemetry. The map sends nothing anywhere on its own: the only outside request is to the model endpoint you configure, and only when you ask it something.
 
 More in [Privacy and security](docs/privacy-and-security.md). Wondering whether a plugin is safe to install? [Is it safe to install?](docs/is-it-safe.md) lists everything Floorplan does on your computer, how a test checks that on every change, and how to verify your copy.
 
@@ -262,6 +351,7 @@ More in [Privacy and security](docs/privacy-and-security.md). Wondering whether 
 |---|---|
 | [Getting started](docs/getting-started.md) | Install, first map, updating, planning from a PRD, removing |
 | [Floorplan in Codex](docs/codex.md) | Installing and using it in Codex |
+| [Engines](docs/engines.md) | Any model (OpenAI, DeepSeek, Ollama, LM Studio…), Claude Code or Codex: config, privacy and fallbacks |
 | [Using the map](docs/using-the-map.md) | Every button, view, shortcut and menu |
 | [How it works](docs/how-it-works.md) | The pipeline, connection matching, refreshes |
 | [What's in your project](docs/project-files.md) | Every file Floorplan creates, and how to edit it |
@@ -276,13 +366,13 @@ More in [Privacy and security](docs/privacy-and-security.md). Wondering whether 
 <details>
 <summary><b>Is it safe to install?</b></summary>
 
-Floorplan has no hooks, no MCP servers and no dependencies, downloads nothing, and never runs code from the internet. Its only outside request is the opt-in waitlist. A test checks all of that on every change, and every release lists a fingerprint of each file so you can confirm your installed copy is the real thing. Everything is in [Is it safe to install?](docs/is-it-safe.md).
+Floorplan has no hooks, no MCP servers and no dependencies, downloads nothing, never runs code from the internet, and makes no outside request of its own: the only network traffic is to the model endpoint you configure, when you ask the map something. A test checks all of that on every change, and every release lists a fingerprint of each file so you can confirm your installed copy is the real thing. Everything is in [Is it safe to install?](docs/is-it-safe.md).
 </details>
 
 <details>
 <summary><b>Does my code leave my computer?</b></summary>
 
-Only the way Claude Code and Codex always work: the AI reads the files it needs to describe your app, through your own account. The map itself is a local file and its server only listens on your machine. If you choose to open the map in the Claude app instead, Claude uploads the map (names, descriptions and structure, not your source code) to your private claude.ai account, and asks first. The one thing Floorplan itself ever sends is your email, and only if you sign up for the [Floorplan Cloud waitlist](docs/privacy-and-security.md#floorplan-cloud-waitlist).
+Only the way Claude Code and Codex always work: the AI reads the files it needs to describe your app, through your own account. The map itself is a local file and its server only listens on your machine. If you choose to open the map in the Claude app instead, Claude uploads the map (names, descriptions and structure, not your source code) to your private claude.ai account, and asks first. Floorplan itself sends nothing anywhere: it only talks to the model endpoint you configure, and only when you ask it something.
 </details>
 
 <details>

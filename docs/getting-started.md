@@ -9,6 +9,7 @@ Floorplan works in **Claude Code** and in **Codex**. Making and using a map is t
 - **Claude Code** (the Code tab in the Claude desktop app, or the Claude Code CLI in a terminal), or **Codex** (the app or the CLI, signed in with ChatGPT).
 - **[Node.js](https://nodejs.org) 18 or newer.** Floorplan's scripts run on it. Check with `node --version`.
 - **With Claude Code, recommended: the [Claude Code CLI](https://code.claude.com/docs/en/overview)**, even if you mainly use the desktop app. With it, the map's Ask bar can read your actual code when answering questions. Codex needs nothing extra: its app includes what the Ask bar uses.
+- **Or neither:** the map's Ask bar can run on **any model** behind an OpenAI-compatible endpoint (Ollama, LM Studio, OpenAI, DeepSeek and most gateways), and a headless driver can make the map with no agent session at all. You don't need one to draw the map in Claude Code, Codex or another harness; see [Engines](engines.md).
 
 ## Install
 

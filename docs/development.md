@@ -16,6 +16,7 @@ skills/floorplan/
   SKILL.md             the workflow Claude and Codex follow
   agents/openai.yaml   how Codex lists the skill
   workflow.json        the same steps as SKILL.md, as data, for running without an agent session
+  driver.mjs           follows workflow.json against any model endpoint: the headless path, no agent session
   references/          formats and style guides Claude reads while working
     schema.md                architecture.json and recent-work.json
     choosing-boundaries.md   how to carve a codebase into a good map
@@ -33,9 +34,15 @@ skills/floorplan/
     lib/           extraction, import resolution, Nuxt auto-imports, route matching, Health, screens, which agent is running, helpers
   assets/
     viewer.html    the map (template the build fills in)
-    ui/            viewer extensions: Theme button, blueprints, glossary, Health, recent work, screens, tour, waitlist card
+    ui/            viewer extensions: Theme button, blueprints, glossary, Health, recent work, screens, tour
     graph-query.js shared map lookups (viewer, query.mjs, Ask instructions)
-    serve.mjs      copied into each project's floorplan/ folder; answers through Claude Code or Codex
+    serve.mjs      copied into each project's floorplan/ folder; serves the map and answers through an engine
+    llm.mjs        the model client serve.mjs and driver.mjs share: one OpenAI-compatible endpoint, tools, schema
+                   checking, retries and masking. It lives here, not in scripts/lib/, because the build copies it
+                   into the map folder, where scripts/ doesn't exist: the map has to answer questions with no skill
+                   installed, so anything serve.mjs imports must be copyable on its own
+    config.mjs     floorplan/config.json and the FLOORPLAN_* overrides: which engine, which endpoint, which model
+                   (copied next to serve.mjs)
     page-safety.mjs  the one way data and code go into a page's <script> blocks, and its Content-Security-Policy
                    (used by build.mjs, and copied next to serve.mjs)
     query-cli.mjs  becomes floorplan/query.mjs
@@ -151,11 +158,21 @@ Files in `skills/floorplan/assets/ui/` are inlined into every map, in name order
 
 `20-health.js` and `25-recent.js` are good examples.
 
+## Portable skills
+
+`SKILL.md` has to run unchanged in Claude Code, Codex, DeepSeek Harness, Cursor, OpenCode, Gemini CLI, and any harness that simply reads the file. Those disagree about the syntax they fill in before the model sees a skill (`${CLAUDE_SKILL_DIR}`, `$ARGUMENTS`, a leading `!` command), so:
+
+- **One placeholder, `${FP}`**, means "the folder holding this SKILL.md". The body says so once, in the note that maps it to Claude Code's own variable. Never add another harness's syntax to the body; frontmatter may keep Claude-specific keys (they're inert elsewhere), and `allowed-tools` must keep naming the skill's own scripts.
+- **No command runs before the model reads the file.** The first step is always "run `status.mjs` yourself", which every harness can do.
+- **An unknown harness is `none`**, never `claude`: a map that says "Fix with Claude" in an agent that isn't Claude is worse than one that names nobody. `scripts/lib/agent.mjs` has the probes; `assets/viewer.html` has the labels (`const AGENT_ID`).
+
+`tests/skill-portability.test.mjs` enforces all of it: no harness syntax outside the documented note, frontmatter that parses as plain YAML, and no `${…}` placeholder the file doesn't define.
+
 ## Adding an agent
 
 There are two lists, and an agent can be on one or both:
-- **The agent that built the map**, in `scripts/lib/agent.mjs`: an entry in `DETECT` that recognises it from the variables it sets for every command it runs. The map records it, so its prompts name the right agent.
-- **The agent that answers questions**, in `assets/serve.mjs`: an entry in `ENGINES` with its name, where to get it, `find` (where its CLI lives, plus a `--<name> <path>` override) and `run` (the arguments and how to read its output into progress and an answer).
+- **The agent that built the map**, in `scripts/lib/agent.mjs`: an entry in `DETECT` that recognises it from the variables it sets for every command it runs, plus a name in `NAMES` and a branch in `assets/viewer.html`'s `AGENT_ID` table. The map records it, so its prompts name the right agent.
+- **The agent that answers questions**, in `assets/serve.mjs`: an entry in `ENGINES` with its name, where to get it, `find` (where its CLI lives, plus a `--<name> <path>` override) and `run` (the arguments and how to read its output into progress and an answer). An engine can also be `kind: 'http'` and fill the same `progress` / `answer` / `fail` events itself, the way the model endpoint does.
 
 An engine must be read-only in a way its CLI enforces, not only because the prompt asks; if it can't be, say so plainly in the docs. Set `structured: true` only when the CLI holds answers to the schema, because changing a blueprint from the map relies on it; without it, the map doesn't offer Change. Never take the command to run from the page or from saved settings. Add a stand-in CLI to `tests/fixtures/fake-cli/` and tests like `ask.test.mjs`.
 
@@ -163,7 +180,7 @@ An engine must be read-only in a way its CLI enforces, not only because the prom
 
 - **No dependencies.** The scripts must run anywhere Node 18+ does, with nothing to install.
 - **Plain language first.** Anything the map shows people should make sense to an app's owner, not just its engineers.
-- **Never store or print secret values.** Health findings record where a secret is and a masked hint, never the value.
+- **Never store or print secret values.** Health findings record where a secret is and a masked hint, never the value. A key for a model endpoint is named by the variable that holds it (`apiKeyEnv`), never written; `assets/llm.mjs` masks tool results and answers before they travel.
 - **One description of the process.** `workflow.json` describes the same steps as SKILL.md, for running Floorplan without an agent session ([unattended.md](unattended.md)). When you change one, change the other, and point at `references/` rather than repeating them.
 - **Keep examples generic.** Code comments, docs and prompts must not describe any real private project.
 

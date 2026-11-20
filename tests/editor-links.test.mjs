@@ -150,7 +150,7 @@ test('the page and page-safety.mjs allow the same editor schemes', () => {
 function serve(root, args = [], env = {}) {
   const port = 20000 + Math.floor(Math.random() * 20000);
   const s = spawn(process.execPath, [path.join(root, 'floorplan', 'serve.mjs'), '--port', String(port), '--no-open', ...args], {
-    cwd: root, env: { ...process.env, FLOORPLAN_CLAUDE: path.join(root, 'no-such-cli'), FLOORPLAN_CODEX: path.join(root, 'no-such-cli'), FLOORPLAN_NO_PROMPTS: '1', FLOORPLAN_EDITOR: '', ...env }, stdio: ['ignore', 'pipe', 'pipe'],
+    cwd: root, env: { ...process.env, FLOORPLAN_CLAUDE: path.join(root, 'no-such-cli'), FLOORPLAN_CODEX: path.join(root, 'no-such-cli'), FLOORPLAN_EDITOR: '', ...env }, stdio: ['ignore', 'pipe', 'pipe'],
   });
   servers.push(s);
   return new Promise((resolve, reject) => {

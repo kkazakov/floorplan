@@ -552,7 +552,7 @@ html.wk svg.dim .node:not(.hl) foreignObject { opacity: .28; }
   header #zoom { position: static; flex: none; flex-direction: row; padding: 0; gap: 0; border-radius: 22px; } /* moved into the top row, left of the search icon */
   /* menus open as full-width cards under the bar */
   #flowmenu, #legend { position: fixed; top: calc(var(--hh, 56px) + 4px); left: 8px; right: 8px; width: auto; max-height: 60vh; overflow: auto; }
-  body #tour, body #cloud-card { left: 8px; right: 8px; width: auto; }
+  body #tour { left: 8px; right: 8px; width: auto; }
 }
 @media (prefers-reduced-motion: reduce) and (max-width: 999px), (prefers-reduced-motion: reduce) and (pointer: coarse) {
   #panel, body.no-panel #panel, #viewport.anim, #ask, #flowbar, #zoom button { transition: none; }
@@ -623,13 +623,28 @@ const G = window.FLOORPLAN;
 // who answers questions and takes "Fix with …" prompts: the CLI the map server runs, else the agent that built the map.
 // A map made without an agent session (meta.agent "none", e.g. in CI) and opened without the server names none.
 const AGENT_ID = window.FLOORPLAN_SERVER?.engine || window.FLOORPLAN_SERVER?.want || G?.meta.agent;
+// the harnesses the skill recognises (scripts/lib/agent.mjs), named as it names them
+const AGENT_OTHER = {
+  dsh: { id: 'dsh', name: 'DeepSeek Harness', app: 'DeepSeek Harness', cli: 'DeepSeek Harness', docs: 'https://github.com/haydenschmitty/floorplan#install',
+      signIn: 'Start the harness again from a terminal to sign in, then ask again.' },
+  cursor: { id: 'cursor', name: 'Cursor', app: 'Cursor', cli: 'Cursor', docs: 'https://cursor.com',
+      signIn: 'Sign in to Cursor, then ask again.' },
+  opencode: { id: 'opencode', name: 'OpenCode', app: 'OpenCode', cli: 'OpenCode', docs: 'https://opencode.ai',
+      signIn: 'Sign in to OpenCode in a terminal, then ask again.' },
+  gemini: { id: 'gemini', name: 'Gemini CLI', app: 'Gemini CLI', cli: 'the Gemini CLI', docs: 'https://github.com/google-gemini/gemini-cli',
+      signIn: 'Run <code>gemini</code> in a terminal once to sign in, then ask again.' },
+};
 const AGENT = AGENT_ID === 'codex'
   ? { id: 'codex', name: 'Codex', app: 'Codex', cli: 'Codex', docs: 'https://developers.openai.com/codex',
       signIn: 'Open the Codex app (or run <code>codex login</code> in a terminal) to sign in, then ask again.' }
+  : AGENT_ID === 'http'
+  ? { id: 'http', name: window.FLOORPLAN_SERVER?.engineLabel || 'AI', app: window.FLOORPLAN_SERVER?.engineLabel || 'the model in floorplan/config.json', cli: window.FLOORPLAN_SERVER?.engineLabel || 'the configured model',
+      docs: 'https://github.com/haydenschmitty/floorplan/blob/main/docs/engines.md',
+      signIn: 'Set <code>baseUrl</code> and <code>model</code> in <code>floorplan/config.json</code> (and the key in the variable it names), then ask again.' }
   : AGENT_ID === 'none'
-  ? { id: 'none', name: 'AI', app: 'your AI coding agent', cli: 'the Claude Code CLI or Codex', docs: 'https://github.com/haydenschmitty/floorplan#install',
-      signIn: 'Sign in to it in a terminal, then ask again.' }
-  : { id: 'claude', name: 'Claude', app: 'Claude Code', cli: 'the Claude Code CLI', docs: 'https://docs.claude.com/en/docs/claude-code/overview',
+  ? { id: 'none', name: 'AI', app: 'your AI coding agent', cli: 'a model endpoint, the Claude Code CLI or Codex', docs: 'https://github.com/haydenschmitty/floorplan#install',
+      signIn: 'Give the map an engine: <code>floorplan/config.json</code>, or one of the CLIs. <code>Ask</code> explains both.' }
+  : AGENT_OTHER[AGENT_ID] || { id: 'claude', name: 'Claude', app: 'Claude Code', cli: 'the Claude Code CLI', docs: 'https://docs.claude.com/en/docs/claude-code/overview',
       signIn: 'Run <code>claude</code> in a terminal once to sign in, then ask again.' };
 const Cap = (t) => t[0].toUpperCase() + t.slice(1);
 if (!G) { document.body.innerHTML = '<p style="padding:2rem">No data. Run build.mjs.</p>'; return; }
@@ -1945,7 +1960,7 @@ async function requestFlow(prompt) {
   const progress = (t) => { lines.push(t); showProgress(label, lines.slice(-6)); };
   showProgress(label, lines);
   try {
-    const raw = askState.engine === 'cli' ? await askViaCli(prompt, progress, 'flow') : await askViaApp(prompt, progress, 'flow');
+    const raw = onServer() ? await askViaCli(prompt, progress, 'flow') : await askViaApp(prompt, progress, 'flow');
     const steps = (raw.steps || []).map((s) => ({ ref: String(s.id || ''), note: String(s.note || '') })).filter((s) => Q.exists(s.ref));
     if (steps.length < 2) throw { code: 'flow_empty', message: `${AGENT.name} couldn't find enough connected steps for that. Try naming where it starts or ends.` };
     const fl = { id: 'custom-' + Date.now().toString(36), title: String(raw.title || prompt).slice(0, 80), description: String(raw.description || ''), steps, custom: true };
@@ -2014,12 +2029,17 @@ function highlightFlow(a, b) {
 // ======================= ask (Claude Code CLI or Codex via serve.mjs, or the Claude app) =======================
 const Q = createGraphQuery(G);
 const askState = { engine: null, sample: null, busy: false, ctl: null, session: null, turns: [], last: null };
+// engines the map's server answers: everything else (the Claude app) is asked in the page itself
+const SERVER_ENGINES = ['cli', 'http'];
+const onServer = () => SERVER_ENGINES.includes(askState.engine);
 const askInput = $('#ask-input'), askSend = $('#ask-send'), sheet = $('#ask-sheet'), warn = $('#ask-warn');
 const DOCS = 'https://docs.claude.com/en/docs/claude-code/overview'; // the Claude app's tip: install the CLI
 const WARNINGS = {
   no_engine: `Asking needs <b>${AGENT.cli}</b>. From the codebase root run <code>node floorplan/serve.mjs</code>${AGENT.id === 'claude' ? ', or open this map in the Claude app' : ''}.`,
   cli_missing: `Requires <b>${AGENT.cli}</b> installed to work. <a href="${AGENT.docs}" target="_blank" rel="noopener">Install it</a>, then restart <code>serve.mjs</code>.`,
   not_logged_in: `${Cap(AGENT.cli)} isn't signed in. ${AGENT.signIn}`,
+  // the server is up but has no engine at all: name both ways to give it one, rather than only a CLI
+  engine_missing: `Asking needs an engine. Put <b>baseUrl</b> and <b>model</b> in <code>floorplan/config.json</code> (Ollama, LM Studio, OpenAI, DeepSeek and most gateways work), or install <b>${AGENT.cli}</b>${AGENT.docs ? ` (<a href="${AGENT.docs}" target="_blank" rel="noopener">install</a>)` : ''}, then restart <code>serve.mjs</code>.`,   
   app_unavailable: `Claude isn't available for this map in this view.`,
   not_granted: `Claude access was declined for this map. Reload the page to be asked again.`,
   cli_tip: `Install the <b>Claude Code CLI</b> for a better experience: it can read your source code, not just this map. <a href="${DOCS}" target="_blank" rel="noopener">Install it</a>, then run <code>node floorplan/serve.mjs</code> in the codebase.`,
@@ -2038,7 +2058,9 @@ function setEngine(engine, label, warning) {
   tag.className = 'engine ' + (engine ? 'ok' : 'warn');
   tag.innerHTML = `<i></i>${h(engine ? label : 'Unavailable')}${engine === 'app' ? `<button type="button" class="einfo" title="Install the Claude Code CLI for a better experience" aria-label="About the Claude Code CLI"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></button>` : ''}`;
   tag.querySelector('.einfo')?.addEventListener('click', () => setWarning(warn.hidden || !warn.classList.contains('info') ? 'cli_tip' : null));
-  tag.title = engine === 'cli' ? `Answers come from ${AGENT.cli} on this computer, which can read the source` : engine === 'app' ? 'Answers come from Claude in the Claude app, using the map (not the source files)' : '';
+  tag.title = engine === 'cli' ? `Answers come from ${AGENT.cli} on this computer, which can read the source`
+    : engine === 'http' ? `Answers come from ${AGENT.name}${window.FLOORPLAN_SERVER?.baseUrlHost ? ` at ${window.FLOORPLAN_SERVER.baseUrlHost}` : ''}, through floorplan/config.json${window.FLOORPLAN_SERVER?.tools === 'off' ? ': it answers from the map only' : ', which can read the source'}`
+      : engine === 'app' ? 'Answers come from Claude in the Claude app, using the map (not the source files)' : '';
   askInput.disabled = !engine;
   askSend.disabled = !engine;
   askInput.placeholder = engine ? `Ask anything about ${G.project.name}…` : 'Asking is unavailable';
@@ -2048,7 +2070,13 @@ function setEngine(engine, label, warning) {
 }
 async function detectEngine() {
   const S = window.FLOORPLAN_SERVER;
-  if (S) { S.cli ? setEngine('cli', AGENT.app + (S.model ? ' · ' + S.model : '')) : setEngine(null, null, 'cli_missing'); return; }
+  if (S) {
+    // served by serve.mjs: the engine it picked names itself, whether that's a model endpoint or a CLI
+    if (S.engine === 'http') setEngine('http', (S.engineLabel || 'a model') + (S.model ? ' · ' + S.model : ''));
+    else if (S.cli) setEngine('cli', AGENT.app + (S.model ? ' · ' + S.model : ''));
+    else setEngine(null, null, S.configured ? 'cli_missing' : 'engine_missing');
+    return;
+  }
   if (window.claude?.use) {
     setEngine(null, null); $('#ask-engine').innerHTML = '<i></i>connecting…';
     let sample = null;
@@ -2137,7 +2165,7 @@ function setBusy(b) {
 }
 function cancelAsk() {
   askState.ctl?.abort();
-  if (askState.engine === 'cli') fetch('/api/cancel', { method: 'POST', headers: { 'x-floorplan-token': window.FLOORPLAN_SERVER.token } }).catch(() => {});
+  if (onServer()) fetch('/api/cancel', { method: 'POST', headers: { 'x-floorplan-token': window.FLOORPLAN_SERVER.token } }).catch(() => {});
 }
 
 // ---------- changing a blueprint from the map (served by serve.mjs) ----------
@@ -2146,7 +2174,7 @@ function cancelAsk() {
 // as recent work. What changed is kept across that reload in sessionStorage, with an Undo.
 const CHANGE_KEY = 'floorplan-change';
 // a server whose engine can't be held to the plan's format says change: false
-const canChange = () => PLAN && askState.engine === 'cli' && window.FLOORPLAN_SERVER?.change !== false;
+const canChange = () => PLAN && onServer() && window.FLOORPLAN_SERVER?.change !== false;
 function setAskMode(m) {
   askState.mode = canChange() && m === 'change' ? 'change' : 'ask';
   $('#ask-mode')?.querySelectorAll('button').forEach((b) => { b.classList.toggle('on', b.dataset.m === askState.mode); b.setAttribute('aria-pressed', String(b.dataset.m === askState.mode)); });
@@ -2286,7 +2314,7 @@ async function submitAsk() {
   const progress = (t) => { lines.push(t); showProgress(shown, lines.slice(-6)); };
   showProgress(shown, lines);
   try {
-    const raw = askState.engine === 'cli' ? await askViaCli(question, progress) : await askViaApp(question, progress);
+    const raw = onServer() ? await askViaCli(question, progress) : await askViaApp(question, progress);
     showAnswer(raw, shown);
   } catch (e) {
     if (e?.name === 'AbortError') showFailure(shown, 'cancelled');

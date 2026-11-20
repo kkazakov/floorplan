@@ -17,7 +17,7 @@ async function serve(env) {
   const log = path.join(root, `fake-${servers.length}.log`);
   const port = 20000 + Math.floor(Math.random() * 20000);
   const server = spawn(process.execPath, [path.join(root, 'floorplan', 'serve.mjs'), '--port', String(port), '--no-open'], {
-    cwd: root, env: { ...process.env, FLOORPLAN_NO_PROMPTS: '1', FLOORPLAN_ENGINE: '', FAKE_LOG: log, ...env }, stdio: ['ignore', 'pipe', 'pipe'],
+    cwd: root, env: { ...process.env, FLOORPLAN_ENGINE: '', FAKE_LOG: log, ...env }, stdio: ['ignore', 'pipe', 'pipe'],
   });
   servers.push(server);
   const base = await new Promise((resolve, reject) => {

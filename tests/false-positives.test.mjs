@@ -124,12 +124,14 @@ test('the page applies the same rule as the build', () => {
   for (const piece of [`d.severity && d.severity !== issue.severity`, `String(loc).replace(/:[^:]*$/, '')`, `left.get(l.file) || 0`]) assert.ok(ui.includes(piece), piece);
 });
 
-test('a report opens a GitHub issue for the person to send, and carries no code, fix prompt or detail', () => {
+test('nothing in the Health panel reports to the developer: a dismissal is a note kept on this machine', () => {
   const ui = fs.readFileSync(new URL('../skills/floorplan/assets/ui/20-health.js', import.meta.url), 'utf8');
-  const report = /const reportText = [\s\S]*?\.join\('\\n'\);/.exec(ui)[0];
-  assert.ok(!/issue\.(fix|detail|notes)/.test(report), report);
-  assert.ok(/issues\/new/.test(ui));
-  assert.ok(!/fetch\([^)]*github/.test(ui), 'the page never sends a report itself');
+  // no issue tracker, no signup, no new window, no request anywhere but the map's own server
+  assert.doesNotMatch(ui, /issues\/new|github\.com|reportText|ISSUES_URL|window\.open|showAddress/, 'the report path is gone');
+  assert.doesNotMatch(ui, /fetch\(\s*(?!['"`]\/)/, 'every request stays on the map server');
+  // and the note is still saved, locally, by the dismissal itself
+  assert.match(ui, /fetch\('\/api\/health\/dismissed'/);
+  assert.match(ui, /SC\.store\.set\(STORE_KEY/, 'without the server it is kept in this browser');
 });
 
 // ---------- through the build and the server ----------

@@ -2,7 +2,7 @@
 // Show the map to the user after a build or refresh. Reuses this map's server if it's running (open tabs
 // have already reloaded themselves), restarts it if serve.mjs changed, otherwise starts it in the
 // background and opens a browser tab. Prints the URL and how to stop it.
-// usage: node open.mjs [root] [--no-open] [--port N] [--engine claude|codex] [--model M] [--claude PATH] [--codex PATH]
+// usage: node open.mjs [root] [--no-open] [--port N] [--engine http|claude|codex] [--model M] [--claude PATH] [--codex PATH]
 //                      [--editor NAME|LINK]   (the editor "Open in editor" opens, e.g. cursor or "zed://file/{path}:{line}")
 import fs from 'node:fs';
 import path from 'node:path';
@@ -64,7 +64,7 @@ if (status && (status.hash !== hash || (editor?.template && status.editor !== ed
 }
 
 if (!status) {
-  const pass = ['port', 'engine', 'model', 'claude', 'codex', 'editor'].flatMap((k) => (args[k] ? ['--' + k, String(args[k])] : []));
+  const pass = ['port', 'engine', 'model', 'base-url', 'api-key-env', 'tools', 'claude', 'codex', 'editor'].flatMap((k) => (args[k] ? ['--' + k, String(args[k])] : []));
   if (!args.port && s?.port) pass.push('--port', String(s.port)); // keep the address people have open
   fs.mkdirSync(path.dirname(stateFile), { recursive: true });
   const log = fs.openSync(path.join(dir, '.cache', 'server.log'), 'w');
@@ -97,7 +97,19 @@ const CLI = {
   claude: { name: 'the Claude Code CLI', docs: 'https://docs.claude.com/en/docs/claude-code' },
   codex: { name: 'Codex', docs: 'https://developers.openai.com/codex' },
 };
-console.log(health?.cli
-  ? `ASK  works: questions run through ${cliLabel(health.engine, health.version)}${health.version ? ' (' + health.version + ')' : ''}`
-  : `ASK  needs ${(CLI[health?.want] || CLI.claude).name}, which was not found; the map itself works (${(CLI[health?.want] || CLI.claude).docs})`);
+const ENGINES_DOC = 'https://github.com/haydenschmitty/floorplan/blob/main/docs/engines.md';
+// three ways to answer: a model endpoint, a Claude Code or Codex CLI, or nothing yet (the map still works)
+const where = `${health?.engineLabel || 'the configured model'}${health?.model && !String(health?.engineLabel || '').includes(health.model) ? ` (${health.model})` : ''}${health?.baseUrlHost ? ` at ${health.baseUrlHost}` : ''}`;
+// an endpoint with no key in this process is configured but won't answer: say that instead of "works"
+const noKey = health?.engine === 'http' && !health.keySet && !health.local;
+const asked = health?.engine === 'http'
+  ? noKey
+    ? `needs a key: ${where} is configured, but no key is in this process. Put the key in the variable named by apiKeyEnv (or start the server with FLOORPLAN_API_KEY=<key>), then restart it${health.configProblem ? `. ${health.configProblem}` : ''}`
+    : `works: questions go to ${where}${health.tools === 'off' ? ', from the map only' : ''}`
+  : health?.cli
+    ? `works: questions run through ${cliLabel(health.engine, health.version)}${health.version ? ' (' + health.version + ')' : ''}`
+    : null;
+console.log(asked
+  ? `ASK  ${asked}`
+  : `ASK  needs an engine: set baseUrl and model in floorplan/config.json (Ollama and LM Studio work as they are), or install the ${(CLI[health?.want] || CLI.claude).name}; the map itself works (${ENGINES_DOC})`);
 console.log(`SERVER  runs in the background, updates open tabs when the map is rebuilt, and stops ${IDLE_MINUTES / 60} hours after the last tab closes. Stop it now: node ${rel}/serve.mjs --stop`);

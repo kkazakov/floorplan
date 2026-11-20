@@ -1,9 +1,23 @@
 # Troubleshooting
 
 ### The Ask bar says it needs the Claude Code CLI
-The map is open without a way to ask questions. Either:
+The map is open without a way to ask questions. Any one of these is enough:
+- give it a model endpoint: put `baseUrl` and `model` in `floorplan/config.json` (see [Engines](engines.md)), then restart `node floorplan/serve.mjs`. A local model on Ollama or LM Studio needs no key and no CLI;
 - install the [Claude Code CLI](https://code.claude.com/docs/en/overview), sign in, then ask Claude to update the floorplan or run `node floorplan/serve.mjs`;
 - or open the map in the Claude app: ask Claude to "publish my floorplan to the Claude app". Answers there come from the map only.
+
+### A model endpoint answers with 401, 429, "did not answer", or "Could not reach"
+These are the endpoint's, not the map's:
+- **401 / "isn't signed in"**: the key it read is wrong or missing. `config.json` names the variable (`apiKeyEnv`); check that variable is set in the shell that started `serve.mjs`. Settings are read at startup, so restart it after a change.
+- **429**: the provider is throttling. Wait, or switch model.
+- **did not answer within …**: raise `FLOORPLAN_TIMEOUT_MS`, or use a smaller/faster model.
+- **Could not reach …**: the `baseUrl` is wrong, or a local server isn't running (`ollama serve`).
+- **its answer didn't fit**: the model can't follow the answer schema. Try a larger model, or set `"tools": "on"`.
+
+[Engines](engines.md#troubleshooting) has the full table.
+
+### The model works but Change doesn't appear
+**Change** needs the endpoint to accept a JSON Schema (or JSON mode). Some small local models accept neither; asking still works, from the map. A map of real code never has Change: only a [blueprint](getting-started.md#plan-something-you-havent-built-yet) does.
 
 ### The CLI is installed but isn't found
 `serve.mjs` looks for `claude` on your PATH and in `~/.local/bin`. If it lives somewhere else:
@@ -51,7 +65,7 @@ Ask Claude or Codex to "update the floorplan". If a tab was already open, it rel
 Maps made before version 0.1.3 load their layout engine from the internet, so check your connection or any content blocker, or ask Claude to "update the floorplan". Newer maps have everything built in and work offline.
 
 ### The Ask bar has no Change switch
-**Change** appears only on a [blueprint](getting-started.md#plan-something-you-havent-built-yet), opened through its server (`node floorplan/serve.mjs`) with the Claude Code CLI or Codex available. A map of real code doesn't have it: ask Claude Code or Codex to change the code, then update the floorplan.
+**Change** appears only on a [blueprint](getting-started.md#plan-something-you-havent-built-yet), opened through its server (`node floorplan/serve.mjs`) with an [engine](engines.md) that holds answers to a schema available (a model endpoint, the Claude Code CLI or Codex). A map of real code doesn't have it: ask Claude Code or Codex to change the code, then update the floorplan.
 
 ### A change to a blueprint failed, or I don't like it
 If the updated plan doesn't pass Floorplan's checks after a second try, nothing is saved and the map stays as it was; try asking more specifically. If a change went through but isn't what you wanted, press **Undo** in its summary, or ask for another change. The previous versions are kept in `floorplan/.cache/history/`.
@@ -91,4 +105,4 @@ node floorplan/serve.mjs --stop
 It also stops by itself two hours after the last tab closes.
 
 ### Still stuck?
-[Open an issue](https://github.com/haydenschmitty/floorplan/issues/new/choose) with what you asked, what happened, whether you used Claude Code or Codex, and the output it showed. Please leave out anything private from your code.
+Nothing is sent anywhere automatically: keep the command's output, and the map server's log in `floorplan/.cache/server.log`, as the starting point for finding out what happened.

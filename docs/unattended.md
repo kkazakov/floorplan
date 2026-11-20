@@ -1,12 +1,26 @@
 # Running Floorplan without an agent session
 
-Floorplan is made to run inside Claude Code or Codex, with you there. It can also run on its own: in CI, in a script, or from your own tooling, with any model that can read files and return JSON. This guide covers the three things that make that work:
+Floorplan is made to run inside Claude Code or Codex, with you there. It can also run on its own: in CI, in a script, or from your own tooling, with any model that can read files and return JSON. **A driver ships with the skill**, so this works with no program to write:
+
+```bash
+export FLOORPLAN_BASE_URL=http://127.0.0.1:11434/v1   # Ollama, LM Studio, vLLM, OpenAI, DeepSeek…
+export FLOORPLAN_MODEL=qwen3-coder
+node skills/floorplan/driver.mjs /path/to/codebase          # prints what it did
+node skills/floorplan/driver.mjs /path/to/codebase --json    # one JSON object for CI
+node skills/floorplan/driver.mjs /path/to/codebase --open    # start the map's server afterwards
+```
+
+It reads the same `floorplan/config.json` and the same `FLOORPLAN_*` variables as the map's server ([Engines](engines.md)), implies unattended mode (it writes nothing outside `floorplan/`, and the map it makes names no agent), and exits non-zero with a named reason when a job can't be completed. `--max-retries N` changes how many times a bad answer is sent back. On the sample shop with a small local model it makes a complete first map, and updates one, without a human in the loop.
+
+A model that can't call functions still works: each job's inputs already carry what it needs (the scan summary, the worksheet, the build's report), so the driver sends a plain prompt instead of failing, and every answer is checked against the job's schema either way.
+
+The rest of this guide is for understanding what the driver does, and for writing another one (a different transport, a different runner). It covers the three things that make that possible:
 
 - **Unattended mode**, which keeps Floorplan to its own folder and makes failures fail;
 - **`--json`**, which gives each script's result as data instead of a report;
-- **the workflow file**, `skills/floorplan/workflow.json`, which describes every step as data so a small program can follow it.
+- **the workflow file**, `skills/floorplan/workflow.json`, which describes every step as data so a program can follow it.
 
-The scripts never call a model, here or anywhere else. They do everything mechanical. A model only ever writes three kinds of JSON file: `floorplan/architecture.json`, `floorplan/descriptions/<key>.json` and `floorplan/recent-work.json`. In an agent session the agent does that; without one, your program asks a model and writes its answer.
+The scripts never call a model, here or anywhere else. They do everything mechanical. A model only ever writes three kinds of JSON file: `floorplan/architecture.json`, `floorplan/descriptions/<key>.json` and `floorplan/recent-work.json`. In an agent session the agent does that; without one, the driver asks a model and writes its answer.
 
 ## Unattended mode
 
@@ -211,7 +225,7 @@ node $S/scripts/describe.mjs /work/shop --json
 
 Two `descriptions` jobs, one per worksheet, each writing its `descriptions` file. Build again until `descriptions.complete`, then recent work, and the map is `floorplan/index.html`.
 
-[`tests/unattended.test.mjs`](../tests/unattended.test.mjs) has a complete driver in about a hundred lines, following the file with canned answers in place of a model. It's a good place to start your own.
+[`driver.mjs`](../skills/floorplan/driver.mjs) is the shipped implementation: it follows this file against any OpenAI-compatible endpoint, using the shared model client in `skills/floorplan/assets/llm.mjs` (the same one the map's server uses). [`tests/unattended.test.mjs`](../tests/unattended.test.mjs) has a second, much smaller driver — about a hundred lines, with canned answers in place of a model — which is the readable specification of the file. [`tests/driver.test.mjs`](../tests/driver.test.mjs) runs the real driver end to end against a mock endpoint.
 
 ### What a driver is responsible for
 
@@ -232,7 +246,7 @@ Two `descriptions` jobs, one per worksheet, each writing its `descriptions` file
 ## What isn't covered
 
 - **Blueprints**, maps planned from a PRD, need a person to answer questions, so the workflow file doesn't make them. A refresh of an existing blueprint still works.
-- **Asking questions on the map**, requesting flows and changing a blueprint from the map need the map's server and Claude Code or Codex, as usual.
+- **Asking questions on the map**, requesting flows and changing a blueprint from the map need the map's server and an [engine](engines.md): a model endpoint, or Claude Code or Codex.
 
 ## Keeping it working
 

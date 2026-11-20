@@ -657,7 +657,9 @@ fs.writeFileSync(path.join(outDir, 'query.mjs'), `${graphQuery}
 ${fs.readFileSync(path.join(SKILL_DIR, 'assets', 'query-cli.mjs'), 'utf8')}`);
 // Written fresh, not copied: a copy keeps the original's permissions, so a skill installed read-only left
 // read-only files here and the next build couldn't replace them. Removing first replaces one left that way.
-for (const name of ['serve.mjs', 'page-safety.mjs']) {
+// llm.mjs is the model client serve.mjs imports, and config.mjs the settings it reads: both travel with the map,
+// so a map folder needs no skill installed to answer questions.
+for (const name of ['serve.mjs', 'page-safety.mjs', 'llm.mjs', 'config.mjs']) {
   const bytes = fs.readFileSync(path.join(SKILL_DIR, 'assets', name));
   fs.rmSync(path.join(outDir, name), { force: true });
   fs.writeFileSync(path.join(outDir, name), bytes);
@@ -715,6 +717,7 @@ else {
       path.join(outDir, '.gitignore'), path.join(outDir, 'graph.json'), path.join(outDir, 'index.html'),
       ...(args.artifact ? [path.join(outDir, 'artifact.html')] : []),
       path.join(outDir, 'query.mjs'), path.join(outDir, 'serve.mjs'), path.join(outDir, 'page-safety.mjs'),
+      path.join(outDir, 'llm.mjs'), path.join(outDir, 'config.mjs'),
       ...(scan.blueprint ? [path.join(outDir, '.cache', 'skill.json')] : []),
     ].map(relPath),
     report: report.join('\n'),

@@ -6,13 +6,42 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { lib, shopApp, run, readGraph, readJson, cleanup } from './helpers.mjs';
 
-const { detectAgent, cliLabel } = await lib('agent.mjs');
+const { detectAgent, cliLabel, AGENTS } = await lib('agent.mjs');
 
-test('Codex is recognised by the variables it sets for every command', () => {
+test('each agent is recognised by the variables it sets for every command', () => {
   assert.equal(detectAgent({}, { CODEX_THREAD_ID: 'abc' }), 'codex');
   assert.equal(detectAgent({}, { CODEX_SESSION_ID: 'abc' }), 'codex');
-  assert.equal(detectAgent({}, {}), 'claude');
   assert.equal(detectAgent({}, { CLAUDECODE: '1' }), 'claude');
+  assert.equal(detectAgent({}, { CLAUDE_CODE_ENTRYPOINT: 'cli' }), 'claude');
+  assert.equal(detectAgent({}, { DSH_SESSION_ID: 'abc' }), 'dsh');
+  assert.equal(detectAgent({}, { CURSOR_TRACE_ID: 'abc' }), 'cursor');
+  assert.equal(detectAgent({}, { OPENCODE: '1' }), 'opencode');
+  assert.equal(detectAgent({}, { GEMINI_CLI: '1' }), 'gemini');
+  // Claude Code wins when several are set, as it would in a Claude Code session that exports something else
+  assert.equal(detectAgent({}, { CLAUDECODE: '1', CODEX_THREAD_ID: 'abc' }), 'claude');
+});
+
+test('an agent the skill does not know is named as none, not as Claude', () => {
+  // naming Claude for a harness that isn't Claude is worse than naming nobody: the map would tell people to
+  // "Fix with Claude" in an environment where Claude isn't installed
+  assert.equal(detectAgent({}, {}), 'none');
+  assert.equal(detectAgent({}, { SOME_OTHER_AGENT: '1' }), 'none');
+  assert.equal(detectAgent({ agent: 'dsh' }, {}), 'dsh', '--agent names one this table does not probe for');
+  assert.equal(detectAgent({}, { FLOORPLAN_AGENT: 'Cursor' }), 'cursor', 'names are case-insensitive');
+  assert.deepEqual(AGENTS, ['claude', 'codex', 'dsh', 'cursor', 'opencode', 'gemini', 'none']);
+});
+
+test('a map built by an unknown harness or DSH adds no Claude Code note', () => {
+  for (const agent of ['dsh', 'cursor', 'opencode', 'gemini', 'none']) {
+    const root = shopApp();
+    try {
+      run('scan.mjs', root);
+      const out = run('build.mjs', root, '--agent', agent);
+      assert.equal(readGraph(root).meta.agent, agent);
+      assert.doesNotMatch(out, /CLAUDE\.LOCAL\.MD/, agent);
+      assert.ok(!fs.existsSync(path.join(root, 'CLAUDE.local.md')), `${agent}: no CLAUDE.local.md`);
+    } finally { cleanup(root); }
+  }
 });
 
 test('--agent and FLOORPLAN_AGENT override the guess, and nonsense is ignored', () => {

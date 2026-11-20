@@ -14,8 +14,11 @@ Floorplan writes to exactly two places in your project: the `floorplan/` folder,
 | `recent-work.json` | What was just worked on, and why. Replaced on every update | Rarely. The AI writes it |
 | `custom-flows.json` | Flows requested from the map | Only to delete one |
 | `health-dismissed.json` | Health issues you marked **Not a problem**, with your reasons | Only to undo one. **Show again** on the map does it too |
-| `serve.mjs` | Serves the map locally and answers questions through the Claude Code CLI or Codex | No |
-| `query.mjs` | Looks things up in the map from the command line; Claude and Codex use it too | No |
+| `serve.mjs` | Serves the map locally and answers questions through whichever [engine](engines.md) you set up: a model endpoint, the Claude Code CLI or Codex | No |
+| `llm.mjs` | The model client `serve.mjs` uses to talk to an OpenAI-compatible endpoint | No |
+| `config.json` | Your choice of engine: the endpoint, the model, and the name of the variable (or file) holding the key. Ignored by git; a key is never put in it | **Yes** (see [Engines](engines.md)) |
+| `page-safety.mjs` | How `serve.mjs` puts data into the page it serves and exports, and those pages' Content-Security-Policy | No |
+| `query.mjs` | Looks things up in the map from the command line; the engines use it too | No |
 | `page-safety.mjs` | How `serve.mjs` puts data into the page it serves and exports, and those pages' Content-Security-Policy | No |
 | `artifact.html` | A copy for opening in the Claude app, only if you asked for one | No |
 | `<project>-map.html` | An exported copy to share, only if you exported one from Claude or Codex (the map's Export button downloads it instead) | No |

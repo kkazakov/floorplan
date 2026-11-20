@@ -118,7 +118,9 @@ Updating a blueprint redraws it from `plan.json`. Once the code exists, `refresh
 
 ## Without an agent session
 
-The same pipeline runs without Claude Code or Codex: in CI, in a script, or from your own tooling, with any model that can read files and return JSON. `skills/floorplan/workflow.json` describes each step as data (which script to run, which job needs a model, what it's given and what it must answer), every script can report its result as JSON, and unattended mode keeps Floorplan to its own folder. See [Running Floorplan without an agent session](unattended.md).
+The same pipeline runs without Claude Code or Codex: in CI, in a script, or from your own tooling, with any model that can read files and return JSON. `skills/floorplan/workflow.json` describes each step as data (which script to run, which job needs a model, what it's given and what it must answer), every script can report its result as JSON, and unattended mode keeps Floorplan to its own folder. The shipped `driver.mjs` follows that file against any OpenAI-compatible endpoint. See [Running Floorplan without an agent session](unattended.md).
+
+The Ask bar works the same way, with one engine at a time: a model endpoint (any OpenAI-compatible API, including a local one), the Claude Code CLI, or Codex. Whichever answers, the map's page, flows and blueprint Change are identical; [Engines](engines.md) covers what each one receives and how the server picks one.
 
 ## Asking questions
 
