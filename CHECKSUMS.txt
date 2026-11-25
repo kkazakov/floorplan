@@ -1,18 +1,18 @@
-# Floorplan 0.12.0: SHA-256 of every file the plugin runs from.
+# Floorplan 0.99.11: SHA-256 of every file the plugin runs from.
 # Check an installed copy: clone this release, then run node tools/checksums.mjs --check <installed folder>.
 43adc6c187150c4b0a4841f0e7448381401be93ee65e2d212be4e7eeb67bb3e4  .agents/plugins/marketplace.json
 fdce61be9c420fd16b8cbbff629baa37e8d1096094b3e90bc5ecc0fe1ffc3a78  .claude-plugin/icon.png
 98cd297588a52fc7715d29ad10636f3224ee7a99bfbb94230315493dabc7147c  .claude-plugin/marketplace.json
-7827ae4b45e8753414dcdd04dc67543c5500cc40a2cee56579a59748892d6337  .claude-plugin/plugin.json
+16488e58f0a1addb986d3ffa72e74634098263ff1aea1c994e8ef7320d2dcd30  .claude-plugin/plugin.json
 7bdb74d57875b25ca9dcd367f79f92b9089f5f4b873bffec898cc6c3f0a84a68  .codex-plugin/icon.png
-01ab293546e41543b736fafd352c1ddd5589a0c0e5cb582b141379cdfae39360  .codex-plugin/plugin.json
+464688b75da43a28c3e3b2a66ac782db350a44619094d8b7613ff1acb1b0a746  .codex-plugin/plugin.json
 cdfd5f09d38c8cad1f845c806078701142121482c5ee4cb8de51efb4aa6fae07  package.json
 954418795ad27eba917fff9a8cb447b7645a7a2cbb15f21028d83a37e2ee29a3  skills/floorplan/SKILL.md
 4dde86cace299094c246604badb73b605a10f47e01a72cc6746680788a7e20f9  skills/floorplan/agents/openai.yaml
 b777c466e3284924d738ff5e12ea97b0c60302278e20e10a7e8977e4985dcda9  skills/floorplan/assets/config.mjs
 91485d6e067e25f742939ee7903d97096e560bfebdb32b71b428294ef2c781d9  skills/floorplan/assets/favicon.png
 e971cfeacb5b9ab98df2cde992839d813ec94bef47134d1e8c2e6e2ced363b19  skills/floorplan/assets/graph-query.js
-43c4f01c72dbc164723cdf048e9b57a8382f855cb1eb74ea3fe5340de9cef468  skills/floorplan/assets/llm.mjs
+65edcf5ec58054496a8cd1ad199020d3b0ef015c8df6606ce6e7b04c79efd7b8  skills/floorplan/assets/llm.mjs
 308b79d1680314b80350eaae04b8ad0c655bfb7a1fa2a2ef64b79e286469cc9b  skills/floorplan/assets/logo.png
 0c005d140da6182e3dd61034ffef726f2437fd634a010231947926d0622d4750  skills/floorplan/assets/page-safety.mjs
 b5d2deedec0ce45fd86e7618370d2a090780883cb63a98c9e08edc81b02937ed  skills/floorplan/assets/query-cli.mjs

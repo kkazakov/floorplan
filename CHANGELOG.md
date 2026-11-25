@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.99.11 (2026-11-25)
+
+- **The version now sorts above every upstream release.** `0.12.0` sat close to upstream's `0.11.0`, so any tool that compares versions and installs "the newer one" would take an upstream release as an upgrade and replace this copy — losing the model-endpoint engine, `driver.mjs` and the harness portability — with no error. The manifests, the README badge and `CHECKSUMS.txt` now say `0.99.11`, which no upstream `0.x` can outrank. Nothing else changed: this is the 0.12.0 code under a version that can't be silently downgraded.
+
 ## 0.12.0 (2026-11-20)
 
 - **The Ask bar can run on any model, with no agent CLI.** Until now questions on the map needed `claude` or `codex` installed and signed in. Now a model behind any OpenAI-compatible endpoint answers instead: OpenAI, DeepSeek, OpenRouter and most gateways, and local models on Ollama, LM Studio and vLLM. Put the address and model in `floorplan/config.json`, name the environment variable that holds the key (`apiKeyEnv`) and restart the server; a local model needs no key at all. The key is never written to the file, the map, a log or an export, and the map's page is told only the engine's name, its model and the endpoint's host. Models that take tools get the map's lookups and read-only source access; models that don't still answer from the map and say so, and Change on a blueprint is offered only when the endpoint holds answers to a schema. See [Engines](docs/engines.md).

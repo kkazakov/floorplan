@@ -1,7 +1,7 @@
 # Floorplan — any model, any harness
 
-Branch: `any-model` · Status: **implemented** — P1–P6 landed in 0.12.0, as one commit on top of the 0.11.0
-baseline; 544 tests with 543 passing and 1 skipped (the Windows-only case). See CHANGELOG 0.12.0 and `docs/engines.md`.
+Branch: `any-model` · Status: **implemented** — P1–P6 landed in 0.12.0, renumbered to 0.99.11 so it sorts
+above every upstream release; 545 tests with 544 passing and 1 skipped (the Windows-only case). See CHANGELOG 0.99.11 and `docs/engines.md`.
 Baseline: fork `kkazakov/floorplan` @ `94f81b4` (Floorplan 0.11.0), in sync with `upstream/main`.
 Test baseline (Node v24.12.0): **488 tests, 487 pass, 0 fail, 1 skipped** (`node --test`).
 
@@ -230,7 +230,7 @@ fixture against the mock; CI green.
 ### P6 — Docs, release, changelog (~1 day)
 1. `docs/engines.md` (engines, config, local models, privacy); README install/quick-start +
    "Any model" section; `docs/unattended.md` rewritten (driver now shipped); FAQ; SECURITY.
-2. CHANGELOG entry; `CHECKSUMS.txt` + release flow per `docs/development.md`; version 0.12.0.
+2. CHANGELOG entry; `CHECKSUMS.txt` + release flow per `docs/development.md`; version 0.99.11.
 
 ---
 

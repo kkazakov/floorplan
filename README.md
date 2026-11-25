@@ -14,7 +14,7 @@ Your AI agent reads your codebase and draws an interactive map of it. Every part
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D97757?style=flat-square)](https://code.claude.com/docs/en/overview)
 [![Codex plugin](https://img.shields.io/badge/Codex-plugin-111?style=flat-square)](docs/codex.md)
 [![Tests](https://img.shields.io/github/actions/workflow/status/haydenschmitty/floorplan/test.yml?branch=main&style=flat-square&label=tests)](https://github.com/haydenschmitty/floorplan/actions/workflows/test.yml)
-[![Version](https://img.shields.io/badge/version-0.12.0-111?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.99.11-111?style=flat-square)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-111?style=flat-square)](LICENSE)
 [![Node 18+](https://img.shields.io/badge/node-%E2%89%A518-111?style=flat-square)](https://nodejs.org)
 [![Zero dependencies](https://img.shields.io/badge/dependencies-0-111?style=flat-square)](#how-it-works)
@@ -48,8 +48,8 @@ Smaller differences that follow from those:
 
 - **Answer quality degrades honestly.** A model with tools gets the map's lookups and read-only source access; one without still gets a digest of the map. **Change** on a blueprint needs an endpoint that accepts a JSON Schema or JSON mode; an endpoint that accepts neither can still answer questions.
 - **The tools are bounded**: inside the codebase root, read-only, no shell, the generated map and key/settings files skipped, secrets masked in every result.
-- **Docs for the new surface**: [Engines](docs/engines.md) (config, local models, privacy table, tool sandbox) and a rewritten [headless guide](docs/unattended.md); the changelog for this copy is 0.12.0.
-- **Version 0.12.0, branch `any-model`.** Upstream is untouched: `upstream/main` is still the 0.11.0 release, and `git diff upstream/main...any-model` is the whole difference.
+- **Docs for the new surface**: [Engines](docs/engines.md) (config, local models, privacy table, tool sandbox) and a rewritten [headless guide](docs/unattended.md); the changelog for this copy is 0.99.11.
+- **Version 0.99.11, branch `any-model`.** Upstream is untouched: `upstream/main` is still the 0.11.0 release, and `git diff upstream/main...any-model` is the whole difference. The high minor version is deliberate: it sorts above every upstream release, so an update from upstream can't quietly replace this copy with one that has no model-endpoint engine.
 
 The original project, its documentation and its MIT license are by [Hayden Smith](https://github.com/haydenschmitty); everything below describes the map itself and applies to both.
 
